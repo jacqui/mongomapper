@@ -13,6 +13,7 @@ module MongoMapper
         extend Validations::Macros
         extend ClassMethods
         extend Finders
+        include NamedScope
 
         def self.per_page
           25
