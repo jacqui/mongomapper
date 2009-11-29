@@ -1,3 +1,5 @@
+require 'mongo_mapper/scope'
+
 module MongoMapper
   module NamedScope
     
@@ -11,19 +13,24 @@ module MongoMapper
       
       def named_scope(name, conditions)
         scopes[name] = conditions
-        define_scope(name, conditions)
+        define_scope_sugar(name, conditions)
       end
       
       def scopes
         @scopes ||= {}
       end
       
-      def define_scope(name, conditions)
+      def define_scope_sugar(name, conditions)
         instance_eval <<-RUBY
           def #{name}
-            all(:conditions => scopes[:#{name}])
+            scope.add_condition(scopes[:#{name}])
+            self
           end
         RUBY
+      end
+      
+      def scope
+        @scope ||= MongoMapper::Scope.new
       end
       
     end

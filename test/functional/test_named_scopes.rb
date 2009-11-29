@@ -26,7 +26,21 @@ class NamedScopesTest < Test::Unit::TestCase
     
     should 'find based on scope' do
       make_people
-      assert_equal [@voter], @document.voters
+      assert_equal [@voter], @document.voters.all
+    end
+    
+    should 'merge chained scopes' do
+      @document.class_eval { named_scope :drapers, {:last_name => 'Draper'} }
+      make_people
+      @document.create(:first_name => 'Roger',
+                       :last_name => 'Sterling',
+                       :age => 60,
+                       :date => Date.parse('1/1/1910'))
+      assert_equal 1, @document.voters.drapers.all.length
+    end
+    
+    should 'define the current scope for a document class' do
+      @document.scope.should be_an_instance_of(MongoMapper::Scope)
     end
     
   end

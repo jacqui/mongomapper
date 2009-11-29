@@ -411,7 +411,7 @@ module MongoMapper
         end
 
         def to_finder_options(options={})
-          FinderOptions.new(self, options).to_a
+          FinderOptions.new(self, options.merge(self.scope.conditions)).to_a
         end
     end
 
