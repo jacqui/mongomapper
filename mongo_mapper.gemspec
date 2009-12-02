@@ -5,11 +5,11 @@
 
 Gem::Specification.new do |s|
   s.name = %q{mongo_mapper}
-  s.version = "0.6.1"
+  s.version = "0.6.5"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["John Nunemaker"]
-  s.date = %q{2009-11-17}
+  s.date = %q{2009-12-01}
   s.default_executable = %q{mmconsole}
   s.email = %q{nunemaker@gmail.com}
   s.executables = ["mmconsole"]
@@ -50,7 +50,6 @@ Gem::Specification.new do |s|
      "lib/mongo_mapper/serialization.rb",
      "lib/mongo_mapper/serializers/json_serializer.rb",
      "lib/mongo_mapper/support.rb",
-     "lib/mongo_mapper/types.rb",
      "lib/mongo_mapper/validations.rb",
      "mongo_mapper.gemspec",
      "specs.watchr",
@@ -144,7 +143,7 @@ Gem::Specification.new do |s|
 
     if Gem::Version.new(Gem::RubyGemsVersion) >= Gem::Version.new('1.2.0') then
       s.add_runtime_dependency(%q<activesupport>, [">= 2.3"])
-      s.add_runtime_dependency(%q<mongo>, ["= 0.17.1"])
+      s.add_runtime_dependency(%q<mongo>, ["= 0.18"])
       s.add_runtime_dependency(%q<jnunemaker-validatable>, ["= 1.8.1"])
       s.add_development_dependency(%q<jnunemaker-matchy>, ["= 0.4.0"])
       s.add_development_dependency(%q<shoulda>, ["= 2.10.2"])
@@ -152,7 +151,7 @@ Gem::Specification.new do |s|
       s.add_development_dependency(%q<mocha>, ["= 0.9.8"])
     else
       s.add_dependency(%q<activesupport>, [">= 2.3"])
-      s.add_dependency(%q<mongo>, ["= 0.17.1"])
+      s.add_dependency(%q<mongo>, ["= 0.18"])
       s.add_dependency(%q<jnunemaker-validatable>, ["= 1.8.1"])
       s.add_dependency(%q<jnunemaker-matchy>, ["= 0.4.0"])
       s.add_dependency(%q<shoulda>, ["= 2.10.2"])
@@ -161,7 +160,7 @@ Gem::Specification.new do |s|
     end
   else
     s.add_dependency(%q<activesupport>, [">= 2.3"])
-    s.add_dependency(%q<mongo>, ["= 0.17.1"])
+    s.add_dependency(%q<mongo>, ["= 0.18"])
     s.add_dependency(%q<jnunemaker-validatable>, ["= 1.8.1"])
     s.add_dependency(%q<jnunemaker-matchy>, ["= 0.4.0"])
     s.add_dependency(%q<shoulda>, ["= 2.10.2"])

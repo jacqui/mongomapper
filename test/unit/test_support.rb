@@ -1,8 +1,6 @@
 require 'test_helper'
 
 class SupportTest < Test::Unit::TestCase
-  include MongoMapper::Types
-  
   context "Array#to_mongo" do
     should "convert value to_a" do
       Array.to_mongo([1, 2, 3, 4]).should == [1, 2, 3, 4]
@@ -333,4 +331,12 @@ class SupportTest < Test::Unit::TestCase
       Time.zone = nil
     end
   end
+  
+  context "Mongo::ObjectID.to_json" do
+    should "convert object id to string" do
+      id = Mongo::ObjectID.new
+      id.to_json.should == id.to_s
+    end
+  end
+  
 end
