@@ -1118,10 +1118,10 @@ class DocumentTest < Test::Unit::TestCase
       original_created_at = 1.month.ago
       doc = @document.new(:first_name => 'John', :age => 27, :created_at => original_created_at)
       doc.created_at.to_i.should == original_created_at.to_i
-      doc.updated_at.should be(nil)
+      doc.updated_at.should be_nil
       doc.save
       doc.created_at.to_i.should == original_created_at.to_i
-      doc.updated_at.should_not be(nil)
+      doc.updated_at.should_not be_nil
     end
 
     should "set updated_at on field update but leave created_at alone" do
