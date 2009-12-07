@@ -407,7 +407,8 @@ module MongoMapper
         end
 
         def to_criteria(options={})
-          FinderOptions.new(self, options).criteria
+          FinderOptions.new(
+            self, options.merge(self.scope.conditions)).criteria
         end
 
         def to_finder_options(options={})

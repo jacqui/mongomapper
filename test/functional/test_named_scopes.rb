@@ -66,6 +66,30 @@ class NamedScopesTest < Test::Unit::TestCase
     end
     
   end
+  
+  context 'Scopes' do
+    
+    should 'apply to .all' do
+      @document.voters.all.length.should == 2
+    end
+    
+    should 'apply to .first' do
+      @document.voters.first.first_name.should == 'Don'
+    end
+    
+    should 'apply to .last' do
+      @document.voters.last(:order => 'last_name').first_name.
+        should == 'Roger'
+    end
+    
+    should 'apply to .count' do
+      @document.voters.count.should == 2
+    end
+    
+    should 'apply to .find' do
+      @document.voters.find!(:all, :conditions => {:first_name => 'Don'}).length.should == 1
+    end
+    
   end
   
   def make_people
