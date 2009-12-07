@@ -90,6 +90,23 @@ class NamedScopesTest < Test::Unit::TestCase
       @document.voters.find!(:all, :conditions => {:first_name => 'Don'}).length.should == 1
     end
     
+    should 'apply to conditions' do
+      @document.voters.count.should == 2
+    end
+    
+    should 'apply to ordering' do
+      @document.class_eval do
+        named_scope :by_age, {:order => 'age'}
+      end
+      @document.by_age.first.age.should == 10
+    end
+    
+    should 'apply to limits' do
+      @document.class_eval do
+        named_scope :just_one, {:limit => 1}
+      end
+      @document.just_one.all.length.should == 1
+    end
   end
   
   def make_people
