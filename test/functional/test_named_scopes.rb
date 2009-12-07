@@ -21,12 +21,12 @@ class NamedScopesTest < Test::Unit::TestCase
     setup { simple_scope }
     
     should 'add simple hash-based scopes' do
-      assert_equal 1, @document.scopes.length
+      @document.scopes.length.should == 1
     end
     
     should 'find based on scope' do
       make_people
-      assert_equal [@voter], @document.voters.all
+      @document.voters.all.should == [@voter]
     end
     
     should 'merge chained scopes' do
@@ -36,7 +36,7 @@ class NamedScopesTest < Test::Unit::TestCase
                        :last_name => 'Sterling',
                        :age => 60,
                        :date => Date.parse('1/1/1910'))
-      assert_equal 1, @document.voters.drapers.all.length
+      @document.voters.drapers.all.length.should == 1
     end
     
     should 'define the current scope for a document class' do
