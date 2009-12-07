@@ -1,5 +1,4 @@
 require 'test_helper'
-require 'models'
 
 class NamedScopesTest < Test::Unit::TestCase
   
@@ -12,30 +11,37 @@ class NamedScopesTest < Test::Unit::TestCase
       key :last_name, String
       key :age, Integer
       key :date, Date
+      
+      named_scope :voters, {:age => {'$gt' => 18}}
+      named_scope :younger_than, lambda { |age| 
+        {:conditions => {'age' => {'$lt' => age}}}
+      }
+      named_scope :named, lambda { |first_name, last_name|
+        {:conditions => {'first_name' => first_name, 
+                         'last_name' => last_name}}
+      }
     end
+    
     @document.collection.remove
+    make_people
   end
   
-  context 'Named scopes' do
+  context 'Static scopes' do
     
-    setup { simple_scope }
-    
-    should 'add simple hash-based scopes' do
-      @document.scopes.length.should == 1
+    should 'add hash-based scopes' do
+      lambda {
+        @document.class_eval do
+          named_scope :don, {:conditions => {:first_name => 'Don'}}
+        end
+      }.should change { @document.scopes.length }.by(1)
     end
     
     should 'find based on scope' do
-      make_people
-      @document.voters.all.should == [@voter]
+      @document.voters.all.length.should == 2
     end
     
     should 'merge chained scopes' do
       @document.class_eval { named_scope :drapers, {:last_name => 'Draper'} }
-      make_people
-      @document.create(:first_name => 'Roger',
-                       :last_name => 'Sterling',
-                       :age => 60,
-                       :date => Date.parse('1/1/1910'))
       @document.voters.drapers.all.length.should == 1
     end
     
@@ -45,10 +51,21 @@ class NamedScopesTest < Test::Unit::TestCase
     
   end
   
-  def simple_scope
-    @document.class_eval do
-      named_scope :voters, {:age => {'$gt' => 18}}
+  context 'Dynamic scopes' do
+    
+    should 'execute a block' do
+      @document.younger_than(50).all.length.should == 2
     end
+    
+    should 'merge with static scopes' do
+      @document.younger_than(50).voters.all.length.should == 1
+    end
+    
+    should 'merge with dynamic scopes' do
+      @document.younger_than(50).named('Don', 'Draper').all.length.should == 1
+    end
+    
+  end
   end
   
   def make_people
@@ -60,6 +77,10 @@ class NamedScopesTest < Test::Unit::TestCase
                              :last_name => 'Draper', 
                              :age => 40, 
                              :date => Date.parse('1/1/1920'))
+    @document.create(:first_name => 'Roger',
+                     :last_name => 'Sterling',
+                     :age => 60,
+                     :date => Date.parse('1/1/1910'))
   end
   
 end

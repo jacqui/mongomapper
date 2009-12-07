@@ -11,19 +11,33 @@ module MongoMapper
     
     module ClassMethods
       
-      def named_scope(name, conditions)
-        scopes[name] = conditions
-        define_scope_sugar(name, conditions)
+      def named_scope(name, specification)
+        scopes[name] = specification
+        case specification
+        when Hash
+          define_static_scope(name, specification)
+        when Proc
+          define_dynamic_scope(name, specification)
+        end
       end
       
       def scopes
         @scopes ||= {}
       end
       
-      def define_scope_sugar(name, conditions)
+      def define_static_scope(name, conditions)
         instance_eval <<-RUBY
           def #{name}
             scope.add_condition(scopes[:#{name}])
+            self
+          end
+        RUBY
+      end
+      
+      def define_dynamic_scope(name, conditions)
+        instance_eval <<-RUBY
+          def #{name}(*args)
+            scope.add_condition(scopes[:#{name}].call(*args))
             self
           end
         RUBY
