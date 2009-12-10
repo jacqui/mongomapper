@@ -52,4 +52,11 @@ module CustomMatchers
     matcher.negative_failure_message = "#{receiver} does have index named #{index_name}, but should not"
     !receiver.collection.index_information.detect { |index| index[0] == index_name }.nil?
   end
+  
+  custom_matcher :be_an_instance_of do |receiver, matcher, args|
+    klass = args.first
+    matcher.positive_failure_message = "Expected #{receiver} to be an instance of #{klass}"
+    matcher.negative_failure_message = "#{receiver} is an instance of #{klass}, but should"
+    receiver.is_a?(klass)
+  end
 end
