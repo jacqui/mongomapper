@@ -50,23 +50,17 @@ class AssociationBaseTest < Test::Unit::TestCase
     
     should "be false if not many" do
       Base.new(:belongs_to, :foo).many?.should be_false
+      Base.new(:one, :foo).many?.should be_false
     end
   end
   
-  context "finder_options" do
-    should "default to empty hash" do
-      base = Base.new(:many, :foos)
-      base.finder_options.should == {}
+  context "one?" do
+    should "be true if one" do
+      Base.new(:one, :foo).one?.should be_true
     end
     
-    should "work with order" do
-      base = Base.new(:many, :foos, :order => 'position')
-      base.finder_options.should == {:order => 'position'}
-    end
-    
-    should "correctly parse from options" do
-      base = Base.new(:many, :foos, :order => 'position', :somekey => 'somevalue')
-      base.finder_options.should == {:order => 'position', :somekey => 'somevalue'}
+    should "be false if not one" do
+      Base.new(:many, :foo).one?.should be_false
     end
   end
   
@@ -90,6 +84,43 @@ class AssociationBaseTest < Test::Unit::TestCase
     end
   end
   
+  context "as?" do
+    should "be true if one" do
+      Base.new(:one, :foo, :as => :commentable).as?.should be_true
+    end
+    
+    should "be false if not one" do
+      Base.new(:many, :foo).as?.should be_false
+    end
+  end
+  
+  context "in_array?" do
+    should "be true if one" do
+      Base.new(:one, :foo, :in => :list_ids).in_array?.should be_true
+    end
+    
+    should "be false if not one" do
+      Base.new(:many, :foo).in_array?.should be_false
+    end
+  end
+  
+  context "finder_options" do
+    should "default to empty hash" do
+      base = Base.new(:many, :foos)
+      base.finder_options.should == {}
+    end
+    
+    should "work with order" do
+      base = Base.new(:many, :foos, :order => 'position')
+      base.finder_options.should == {:order => 'position'}
+    end
+    
+    should "correctly parse from options" do
+      base = Base.new(:many, :foos, :order => 'position', :somekey => 'somevalue')
+      base.finder_options.should == {:order => 'position', :somekey => 'somevalue'}
+    end
+  end
+  
   context "type_key_name" do
     should "be _type for many" do
       Base.new(:many, :foos).type_key_name.should == '_type'
@@ -101,7 +132,7 @@ class AssociationBaseTest < Test::Unit::TestCase
   end
   
   context "foreign_key" do
-    should "default to assocation_name_id" do
+    should "default to assocation name _id for belongs to" do
       base = Base.new(:belongs_to, :foo)
       base.foreign_key.should == 'foo_id'
     end
@@ -132,9 +163,9 @@ class AssociationBaseTest < Test::Unit::TestCase
   end
   
   context "proxy_class" do
-    should "be ManyProxy for many" do      
+    should "be ManyDocumentsProxy for many" do      
       base = Base.new(:many, :statuses)
-      base.proxy_class.should == ManyProxy
+      base.proxy_class.should == ManyDocumentsProxy
     end
     
     should "be ManyPolymorphicProxy for polymorphic many" do
@@ -160,6 +191,16 @@ class AssociationBaseTest < Test::Unit::TestCase
     should "be BelongsToPolymorphicProxy for polymorphic belongs_to" do
       base = Base.new(:belongs_to, :target, :polymorphic => true)
       base.proxy_class.should == BelongsToPolymorphicProxy
+    end
+    
+    should "be OneProxy for one" do
+      base = Base.new(:one, :target, :polymorphic => true)
+      base.proxy_class.should == OneProxy
+    end
+    
+    should "be InArrayProxy for many with :in option" do
+      base = Base.new(:many, :messages, :in => :message_ids)
+      base.proxy_class.should == InArrayProxy
     end
   end
   

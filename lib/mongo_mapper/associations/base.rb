@@ -1,13 +1,10 @@
 module MongoMapper
   module Associations
-    # Base class for keeping track of associations.
-    #
-    # @private
     class Base
       attr_reader :type, :name, :options, :finder_options
 
       # Options that should not be considered MongoDB query options/criteria
-      AssociationOptions = [:as, :class, :class_name, :dependent, :extend, :foreign_key, :polymorphic]
+      AssociationOptions = [:as, :class, :class_name, :dependent, :extend, :foreign_key, :in, :polymorphic]
 
       def initialize(type, name, options={}, &extension)
         @type, @name, @options, @finder_options = type, name, {}, {}
@@ -47,6 +44,10 @@ module MongoMapper
       def belongs_to?
         @belongs_to_type ||= @type == :belongs_to
       end
+      
+      def one?
+        @one_type ||= @type == :one
+      end
 
       def polymorphic?
         !!@options[:polymorphic]
@@ -54,6 +55,14 @@ module MongoMapper
 
       def as?
         !!@options[:as]
+      end
+      
+      def in_array?
+        !!@options[:in]
+      end
+
+      def embeddable?
+        many? && klass.embeddable?
       end
 
       def type_key_name
@@ -72,10 +81,6 @@ module MongoMapper
         @ivar ||= "@_#{name}"
       end
 
-      def embeddable?
-        many? && klass.embeddable?
-      end
-
       def proxy_class
         @proxy_class ||= begin
           if many?
@@ -86,15 +91,19 @@ module MongoMapper
                 ManyPolymorphicProxy
               elsif as?
                 ManyDocumentsAsProxy
+              elsif in_array?
+                InArrayProxy
               else
-                ManyProxy
+                ManyDocumentsProxy
               end
             end
+          elsif one?
+            OneProxy
           else
             polymorphic? ? BelongsToPolymorphicProxy : BelongsToProxy
           end
-        end # end begin
-      end # end proxy_class
+        end
+      end
 
       private
 

@@ -1,9 +1,5 @@
 require 'set'
 
-class BasicObject #:nodoc:
-  instance_methods.each { |m| undef_method m unless m =~ /(^__|instance_eval)/ }
-end unless defined?(BasicObject)
-
 class Array
   def self.to_mongo(value)
     value = value.respond_to?(:lines) ? value.lines : value
@@ -124,7 +120,7 @@ end
 
 class ObjectId
   def self.to_mongo(value)
-    if value.nil?
+    if value.blank?
       nil
     elsif value.is_a?(Mongo::ObjectID)
       value
@@ -164,9 +160,12 @@ class Symbol
       MongoMapper::FinderOperator.new(self, "$#{operator}")
     end
   end
+  
+  def asc;  MongoMapper::OrderOperator.new(self, 'asc') end
+  def desc; MongoMapper::OrderOperator.new(self, 'desc') end
 end
 
-class Time  
+class Time
   def self.to_mongo(value)
     if value.nil? || value == ''
       nil

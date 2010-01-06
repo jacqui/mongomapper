@@ -1,6 +1,8 @@
 module MongoMapper
   module Pagination
-    class PaginationProxy < BasicObject
+    class PaginationProxy
+      instance_methods.each { |m| undef_method m unless m =~ /(^__|^nil\?$|^send$|proxy_|^object_id$)/ }
+      
       attr_accessor :subject
       attr_reader :total_entries, :per_page, :current_page
       alias limit per_page
@@ -31,7 +33,18 @@ module MongoMapper
         (current_page - 1) * per_page
       end
       alias offset skip # for will paginate support
+
+      def send(method, *args, &block)
+        if respond_to?(method)
+          super
+        else
+          subject.send(method, *args, &block)
+        end
+      end
       
+      def ===(other)
+        other === subject
+      end
       
       def method_missing(name, *args, &block)
         @subject.send(name, *args, &block)

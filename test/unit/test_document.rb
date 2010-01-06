@@ -4,11 +4,7 @@ require 'models'
 class DocumentTest < Test::Unit::TestCase
   context "The Document Class" do
     setup do
-      @document = Class.new do
-        include MongoMapper::Document
-        set_collection_name 'test'
-      end
-      @document.collection.remove
+      @document = Doc()
     end
     
     should "have logger method" do
@@ -40,10 +36,7 @@ class DocumentTest < Test::Unit::TestCase
       @document.database_name.should == 'test2'
       @document.database.name.should == 'test2'
 
-      another_document = Class.new do
-        include MongoMapper::Document
-        set_collection_name 'test'
-      end
+      another_document = Doc()
       another_document.database.should == MongoMapper.database
     end
     
@@ -72,6 +65,34 @@ class DocumentTest < Test::Unit::TestCase
       @document.collection.should be_instance_of(Mongo::Collection)
       @document.collection.name.should == 'foobar'
     end
+
+    should 'allow extensions to Document to be appended' do
+      module Extension; def test_this_extension; end end
+      MongoMapper::Document.append_extensions(Extension)
+      article = Doc()
+      article.should respond_to(:test_this_extension)
+    end
+
+    should 'add appended extensions to classes that include Document before they are added' do
+      module Extension; def test_this_extension; end end
+      article = Doc()
+      MongoMapper::Document.append_extensions(Extension)
+      article.should respond_to(:test_this_extension)
+    end
+
+    should 'allow inclusions to Document to be appended' do
+      module Inclusion; def test_this_inclusion; end end
+      MongoMapper::Document.append_inclusions(Inclusion)
+      article = Doc()
+      article.new.should respond_to(:test_this_inclusion)
+    end
+
+    should 'add appended inclusions to classes that include Document before they are added' do
+      module Inclusion; def test_this_inclusion; end end
+      article = Doc()
+      MongoMapper::Document.append_inclusions(Inclusion)
+      article.new.should respond_to(:test_this_inclusion)
+    end
   end # Document class
   
   context "Documents that inherit from other documents" do
@@ -96,14 +117,10 @@ class DocumentTest < Test::Unit::TestCase
 
   context "An instance of a document" do
     setup do
-      @document = Class.new do
-        include MongoMapper::Document
-        set_collection_name 'test'
-
+      @document = Doc do
         key :name, String
         key :age, Integer
       end
-      @document.collection.remove
     end
     
     should "have access to logger" do
@@ -137,13 +154,9 @@ class DocumentTest < Test::Unit::TestCase
       end
 
       should "set self to the root document on embedded documents" do        
-        klass = Class.new do
-          include MongoMapper::Document
-        end
+        klass = Doc()
+        pets = EDoc()
         
-        pets = Class.new do
-          include MongoMapper::EmbeddedDocument
-        end
         klass.many :pets, :class => pets
         
         doc = klass.new(:pets => [{}])
@@ -183,6 +196,7 @@ class DocumentTest < Test::Unit::TestCase
       setup do
         @oid = Mongo::ObjectID.new
       end
+      
       should "be equal if id and class are the same" do
         (@document.new('_id' => @oid) == @document.new('_id' => @oid)).should be(true)
       end
@@ -192,12 +206,8 @@ class DocumentTest < Test::Unit::TestCase
       end
 
       should "not be equal if id same but class different" do
-        @another_document = Class.new do
-          include MongoMapper::Document
-          set_collection_name 'test'
-        end
-
-        (@document.new('_id' => @oid) == @another_document.new('_id' => @oid)).should be(false)
+        another_document = Doc()
+        (@document.new('_id' => @oid) == another_document.new('_id' => @oid)).should be(false)
       end
     end
   end # instance of a document

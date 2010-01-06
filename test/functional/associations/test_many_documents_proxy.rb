@@ -1,7 +1,7 @@
 require 'test_helper'
 require 'models'
 
-class ManyProxyTest < Test::Unit::TestCase
+class ManyDocumentsProxyTest < Test::Unit::TestCase
   def setup
     Project.collection.remove
     Status.collection.remove
@@ -22,10 +22,10 @@ class ManyProxyTest < Test::Unit::TestCase
 
   should "be able to replace the association" do
     project = Project.new
-    project.statuses = [Status.new("name" => "ready")]
+    project.statuses = [Status.new(:name => "ready")]
     project.save.should be_true
 
-    project = project.reload
+    project.reload
     project.statuses.size.should == 1
     project.statuses[0].name.should == "ready"
   end
@@ -36,17 +36,17 @@ class ManyProxyTest < Test::Unit::TestCase
     project.statuses.push   Status.new(:name => 'push')
     project.statuses.concat Status.new(:name => 'concat')
     
-    project = project.reload
-    project.statuses[0].project_id.should == project._id
-    project.statuses[1].project_id.should == project._id
-    project.statuses[2].project_id.should == project._id
+    project.reload
+    project.statuses[0].project_id.should == project.id
+    project.statuses[1].project_id.should == project.id
+    project.statuses[2].project_id.should == project.id
   end
   
   context "build" do
     should "assign foreign key" do
       project = Project.create
       status = project.statuses.build
-      status.project_id.should == project._id
+      status.project_id.should == project.id
     end
 
     should "allow assigning attributes" do
@@ -60,7 +60,7 @@ class ManyProxyTest < Test::Unit::TestCase
     should "assign foreign key" do
       project = Project.create
       status = project.statuses.create(:name => 'Foo!')
-      status.project_id.should == project._id
+      status.project_id.should == project.id
     end
     
     should "save record" do
@@ -81,7 +81,7 @@ class ManyProxyTest < Test::Unit::TestCase
     should "assign foreign key" do
       project = Project.create
       status = project.statuses.create!(:name => 'Foo!')
-      status.project_id.should == project._id
+      status.project_id.should == project.id
     end
     
     should "save record" do
@@ -205,11 +205,14 @@ class ManyProxyTest < Test::Unit::TestCase
     context "dynamic finders" do
       should "work with single key" do
         @project1.statuses.find_by_name('New').should == @brand_new
+        @project1.statuses.find_by_name!('New').should == @brand_new
         @project2.statuses.find_by_name('In Progress').should == @in_progress
+        @project2.statuses.find_by_name!('In Progress').should == @in_progress
       end
       
       should "work with multiple keys" do
         @project1.statuses.find_by_name_and_position('New', 1).should == @brand_new
+        @project1.statuses.find_by_name_and_position!('New', 1).should == @brand_new
         @project1.statuses.find_by_name_and_position('New', 2).should be_nil
       end
       
@@ -232,108 +235,68 @@ class ManyProxyTest < Test::Unit::TestCase
           lambda {
             status = @project1.statuses.find_or_create_by_name('Delivered')
             status.project.should == @project1
-          }.should change { Status.count }.by(1)
+          }.should change { Status.count }
         end
       end
     end
     
-    context "with :all" do
+    context "all" do
       should "work" do
         @project1.statuses.find(:all, :order => "position asc").should == [@brand_new, @complete]
-      end
-      
-      should "work with conditions" do
-        statuses = @project1.statuses.find(:all, :name => 'Complete')
-        statuses.should == [@complete]
-      end
-      
-      should "work with order" do
-        statuses = @project1.statuses.find(:all, :order => 'name asc')
-        statuses.should == [@complete, @brand_new]
-      end
-    end
-
-    context "with #all" do
-      should "work" do
         @project1.statuses.all(:order => "position asc").should == [@brand_new, @complete]
       end
       
       should "work with conditions" do
-        statuses = @project1.statuses.all(:name => 'Complete')
-        statuses.should == [@complete]
-      end
-      
-      should "work with order" do
-        statuses = @project1.statuses.all(:order => 'name asc')
-        statuses.should == [@complete, @brand_new]
+        @project1.statuses.find(:all, :name => 'Complete').should == [@complete]
+        @project1.statuses.all(:name => 'Complete').should == [@complete]
       end
     end
     
-    context "with :first" do
+    context "first" do
       should "work" do
         @project1.statuses.find(:first, :order => 'name').should == @complete
-      end
-      
-      should "work with conditions" do
-        status = @project1.statuses.find(:first, :name => 'Complete')
-        status.should == @complete
-      end
-    end
-    
-    context "with #first" do
-      should "work" do
         @project1.statuses.first(:order => 'name').should == @complete
       end
       
       should "work with conditions" do
-        status = @project1.statuses.first(:name => 'Complete')
-        status.should == @complete
+        @project1.statuses.find(:first, :name => 'Complete').should == @complete
+        @project1.statuses.first(:name => 'Complete').should == @complete
       end
     end
     
-    context "with :last" do
+    context "last" do
       should "work" do
         @project1.statuses.find(:last, :order => "position asc").should == @complete
-      end
-      
-      should "work with conditions" do
-        status = @project1.statuses.find(:last, :order => 'position', :name => 'New')
-        status.should == @brand_new
-      end
-    end
-    
-    context "with #last" do
-      should "work" do
         @project1.statuses.last(:order => "position asc").should == @complete
       end
       
       should "work with conditions" do
-        status = @project1.statuses.last(:order => 'position', :name => 'New')
-        status.should == @brand_new
+        @project1.statuses.find(:last, :order => 'position', :name => 'New').should == @brand_new
+        @project1.statuses.last(:order => 'position', :name => 'New').should == @brand_new
       end
     end
     
     context "with one id" do
       should "work for id in association" do
-        @project1.statuses.find(@complete._id).should == @complete
+        @project1.statuses.find(@complete.id).should == @complete
       end
       
       should "not work for id not in association" do
         lambda {
-          @project1.statuses.find!(@archived._id)
+          @project1.statuses.find!(@archived.id)
         }.should raise_error(MongoMapper::DocumentNotFound)
       end
     end
     
     context "with multiple ids" do
       should "work for ids in association" do
-        statuses = @project1.statuses.find(@brand_new._id, @complete._id)
+        statuses = @project1.statuses.find(@brand_new.id, @complete.id)
         statuses.should == [@brand_new, @complete]
       end
       
       should "not work for ids not in association" do
         lambda {
-          @project1.statuses.find!(@brand_new._id, @complete._id, @archived._id)
+          @project1.statuses.find!(@brand_new.id, @complete.id, @archived.id)
         }.should raise_error(MongoMapper::DocumentNotFound)
       end
     end
@@ -379,6 +342,96 @@ class ManyProxyTest < Test::Unit::TestCase
       project.collaborators = [collaborator1, collaborator2]
       project.save
       project.collaborators.top.should == collaborator1
+    end
+  end
+  
+  context ":dependent" do
+    setup do
+      # FIXME: make use of already defined models
+      class ::Property
+        include MongoMapper::Document
+      end
+      Property.collection.remove
+
+      class ::Thing
+        include MongoMapper::Document
+        key :name, String
+      end
+      Thing.collection.remove
+    end
+
+    teardown do
+      Object.send :remove_const, 'Property' if defined?(::Property)
+      Object.send :remove_const, 'Thing' if defined?(::Thing)
+    end
+
+    context "=> destroy" do
+      setup do
+        Property.key :thing_id, ObjectId
+        Property.belongs_to :thing, :dependent => :destroy
+        Thing.many :properties, :dependent => :destroy
+
+        @thing = Thing.create(:name => "Tree")
+        @property1 = Property.create
+        @property2 = Property.create
+        @property3 = Property.create
+        @thing.properties << @property1
+        @thing.properties << @property2
+        @thing.properties << @property3
+      end
+
+      should "should destroy the associated documents" do
+        @thing.properties.count.should == 3
+        @thing.destroy
+        @thing.properties.count.should == 0
+        Property.count.should == 0
+      end
+    end
+
+    context "=> delete_all" do
+      setup do
+        Property.key :thing_id, ObjectId
+        Property.belongs_to :thing
+        Thing.has_many :properties, :dependent => :delete_all
+
+        @thing = Thing.create(:name => "Tree")
+        @property1 = Property.create
+        @property2 = Property.create
+        @property3 = Property.create
+        @thing.properties << @property1
+        @thing.properties << @property2
+        @thing.properties << @property3
+      end
+
+      should "should delete associated documents" do
+        @thing.properties.count.should == 3
+        @thing.destroy
+        @thing.properties.count.should == 0
+        Property.count.should == 0
+      end
+    end
+
+    context "=> nullify" do
+      setup do
+        Property.key :thing_id, ObjectId
+        Property.belongs_to :thing
+        Thing.has_many :properties, :dependent => :nullify
+
+        @thing = Thing.create(:name => "Tree")
+        @property1 = Property.create
+        @property2 = Property.create
+        @property3 = Property.create
+        @thing.properties << @property1
+        @thing.properties << @property2
+        @thing.properties << @property3
+      end
+
+      should "should nullify relationship but not destroy associated documents" do
+        @thing.properties.count.should == 3
+        @thing.destroy
+        @thing.properties.count.should == 0
+        Property.count.should == 3
+      end
     end
   end
 end

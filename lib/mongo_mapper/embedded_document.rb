@@ -1,12 +1,10 @@
-require 'observer'
-
 module MongoMapper
   module EmbeddedDocument
     def self.included(model)
       model.class_eval do
         extend ClassMethods
         include InstanceMethods
-
+        
         extend Associations::ClassMethods
         include Associations::InstanceMethods
 
@@ -81,14 +79,9 @@ module MongoMapper
         instance.to_mongo
       end
       
-      def from_mongo(instance_or_hash)
-        return nil if instance_or_hash.nil?
-        
-        if instance_or_hash.is_a?(self)
-          instance_or_hash
-        else
-          initialize_doc(instance_or_hash)
-        end
+      def from_mongo(value)
+        return nil if value.nil?
+        value.is_a?(self) ? value : initialize_doc(value)
       end
       
     private
@@ -179,13 +172,9 @@ module MongoMapper
     end
 
     module InstanceMethods
-      def logger
-        self.class.logger
-      end
-      
       def initialize(attrs={})
         unless attrs.nil?
-          self.class.associations.each_pair do |name, association|
+          associations.each do |name, association|
             if collection = attrs.delete(name)
               if association.many? && association.klass.embeddable?
                 root_document = attrs[:_root_document] || self
@@ -292,7 +281,7 @@ module MongoMapper
       end
 
       def id
-        read_attribute(:_id)
+        self[:_id]
       end
 
       def id=(value)
@@ -302,7 +291,7 @@ module MongoMapper
           @using_custom_id = true
         end
         
-        write_attribute :_id, value
+        self[:_id] = value
       end
 
       def using_custom_id?
@@ -316,16 +305,12 @@ module MongoMapper
         "#<#{self.class} #{attributes_as_nice_string}>"
       end
 
-      def save
-        if _root_document
-          _root_document.save
-        end
+      def save(options={})
+        _root_document.try(:save, options)
       end
       
-      def save!
-        if _root_document
-          _root_document.save!
-        end
+      def save!(options={})
+        _root_document.try(:save!, options)
       end
 
       def update_attributes(attrs={})
@@ -336,6 +321,10 @@ module MongoMapper
       def update_attributes!(attrs={})
         self.attributes = attrs
         save!
+      end
+      
+      def logger
+        self.class.logger
       end
 
       private
@@ -362,7 +351,7 @@ module MongoMapper
         def read_attribute(name)
           if key = _keys[name]
             value = key.get(instance_variable_get("@#{name}"))
-            instance_variable_set "@#{name}", value if !frozen?
+            instance_variable_set "@#{name}", value
             value
           else
             raise KeyNotFound, "Could not find key: #{name.inspect}"
@@ -380,7 +369,7 @@ module MongoMapper
         end
         
         def embedded_associations
-          self.class.associations.select do |name, association|
+          associations.select do |name, association|
             association.embeddable?
           end.map do |name, association|
             association

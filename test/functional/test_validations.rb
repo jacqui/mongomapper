@@ -3,12 +3,9 @@ require 'test_helper'
 class ValidationsTest < Test::Unit::TestCase  
   context "Saving a new document that is invalid" do
     setup do
-      @document = Class.new do
-        include MongoMapper::Document
-        set_collection_name 'test'
+      @document = Doc do
         key :name, String, :required => true
       end
-      @document.collection.remove
     end
     
     should "not insert document" do
@@ -25,31 +22,11 @@ class ValidationsTest < Test::Unit::TestCase
     end
   end
 
-  context "Skipping validations when saving" do
-    setup do
-      @document = Class.new do
-        include MongoMapper::Document
-        set_collection_name 'test'
-        key :name, String, :required => true
-      end
-      @document.collection.remove
-    end
-
-    should "insert document" do
-      doc = @document.new
-      doc.save(false)
-      @document.count.should == 1
-    end
-  end
-
   context "Saving a document that is invalid (destructive)" do
     setup do
-      @document = Class.new do
-        include MongoMapper::Document
-        set_collection_name 'test'
+      @document = Doc do
         key :name, String, :required => true
       end
-      @document.collection.remove
     end
     
     should "raise error" do
@@ -60,12 +37,9 @@ class ValidationsTest < Test::Unit::TestCase
 
   context "Creating a document that is invalid (destructive)" do
     setup do
-      @document = Class.new do
-        include MongoMapper::Document
-        set_collection_name 'test'
+      @document = Doc do
         key :name, String, :required => true
       end
-      @document.collection.remove
     end
     
     should "raise error" do
@@ -80,12 +54,9 @@ class ValidationsTest < Test::Unit::TestCase
   
   context "Saving an existing document that is invalid" do
     setup do
-      @document = Class.new do
-        include MongoMapper::Document
-        set_collection_name 'test'
+      @document = Doc do
         key :name, String, :required => true
       end
-      @document.collection.remove
       
       @doc = @document.create(:name => 'John Nunemaker')
     end
@@ -105,16 +76,12 @@ class ValidationsTest < Test::Unit::TestCase
   
   context "Adding validation errors" do
     setup do
-      @document = Class.new do
-        include MongoMapper::Document
-        set_collection_name 'test'
-        
+      @document = Doc do
         key :action, String
         def action_present
           errors.add(:action, 'is invalid') if action.blank?
         end
       end
-      @document.collection.remove
     end
     
     should "work with validate_on_create callback" do
@@ -150,14 +117,10 @@ class ValidationsTest < Test::Unit::TestCase
   
   context "validating uniqueness of" do
     setup do
-      @document = Class.new do
-        include MongoMapper::Document
-        set_collection_name 'test'
-        
+      @document = Doc do
         key :name, String
         validates_uniqueness_of :name
       end
-      @document.collection.remove
     end
 
     should "not fail if object is new" do
@@ -166,10 +129,7 @@ class ValidationsTest < Test::Unit::TestCase
     end
 
     should "not fail when new object is out of scope" do
-      document = Class.new do
-        include MongoMapper::Document
-        set_collection_name 'test'
-        
+      document = Doc do
         key :name
         key :adult
         validates_uniqueness_of :name, :scope => :adult
@@ -179,7 +139,6 @@ class ValidationsTest < Test::Unit::TestCase
 
       doc2 = document.new("name" => "joe", :adult => false)
       doc2.should be_valid
-
     end
 
     should "allow to update an object" do
@@ -210,10 +169,7 @@ class ValidationsTest < Test::Unit::TestCase
     end
     
     should "allow multiple blank entries if :allow_blank => true" do
-      document = Class.new do
-        include MongoMapper::Document
-        set_collection_name 'test'
-        
+      document = Doc do
         key :name
         validates_uniqueness_of :name, :allow_blank => :true
       end
@@ -231,10 +187,7 @@ class ValidationsTest < Test::Unit::TestCase
     end
 
     should "allow entries that differ only in case by default" do
-      document = Class.new do
-        include MongoMapper::Document
-        set_collection_name 'test'
-
+      document = Doc do
         key :name
         validates_uniqueness_of :name
       end
@@ -248,10 +201,7 @@ class ValidationsTest < Test::Unit::TestCase
 
     context "with :case_sensitive => false" do
       setup do
-        @document = Class.new do
-          include MongoMapper::Document
-          set_collection_name 'test'
-
+        @document = Doc do
           key :name
           validates_uniqueness_of :name, :case_sensitive => false
         end
@@ -273,15 +223,11 @@ class ValidationsTest < Test::Unit::TestCase
 
     context "scoped by a single attribute" do
       setup do
-        @document = Class.new do
-          include MongoMapper::Document
-          set_collection_name 'test'
-          
+        @document = Doc do
           key :name, String
           key :scope, String
           validates_uniqueness_of :name, :scope => :scope
         end
-        @document.collection.remove
       end
 
       should "fail if the same name exists in the scope" do
@@ -313,16 +259,12 @@ class ValidationsTest < Test::Unit::TestCase
 
     context "scoped by a multiple attributes" do
       setup do
-        @document = Class.new do
-          include MongoMapper::Document
-          set_collection_name 'test'
-          
+        @document = Doc do
           key :name, String
           key :first_scope, String
           key :second_scope, String
           validates_uniqueness_of :name, :scope => [:first_scope, :second_scope]
         end
-        @document.collection.remove
       end
       
       should "fail if the same name exists in the scope" do
@@ -355,13 +297,9 @@ class ValidationsTest < Test::Unit::TestCase
   
   context "validates uniqueness of with :unique shortcut" do
     should "work" do
-      @document = Class.new do
-        include MongoMapper::Document
-        set_collection_name 'test'
-        
+      @document = Doc do
         key :name, String, :unique => true
       end
-      @document.collection.remove
       
       doc = @document.create(:name => 'John')
       doc.should_not have_error_on(:name)
