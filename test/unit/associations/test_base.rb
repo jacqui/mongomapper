@@ -4,7 +4,7 @@ require 'models'
 class FooMonster; end
 
 class AssociationBaseTest < Test::Unit::TestCase
-  include MongoMapper::Associations
+  include MongoMapper::Plugins::Associations
   
   should "initialize with type and name" do
     base = Base.new(:many, :foos)
@@ -104,20 +104,20 @@ class AssociationBaseTest < Test::Unit::TestCase
     end
   end
   
-  context "finder_options" do
+  context "query_options" do
     should "default to empty hash" do
       base = Base.new(:many, :foos)
-      base.finder_options.should == {}
+      base.query_options.should == {}
     end
     
     should "work with order" do
       base = Base.new(:many, :foos, :order => 'position')
-      base.finder_options.should == {:order => 'position'}
+      base.query_options.should == {:order => 'position'}
     end
     
     should "correctly parse from options" do
       base = Base.new(:many, :foos, :order => 'position', :somekey => 'somevalue')
-      base.finder_options.should == {:order => 'position', :somekey => 'somevalue'}
+      base.query_options.should == {:order => 'position', :somekey => 'somevalue'}
     end
   end
   

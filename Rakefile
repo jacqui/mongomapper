@@ -6,13 +6,13 @@ require 'yard/rake/yardoc_task'
 
 Jeweler::Tasks.new do |gem|
   gem.name        = "mongo_mapper"
-  gem.summary     = %Q{Awesome gem for modeling your domain and storing it in mongo}
+  gem.summary     = %Q{A Ruby Object Mapper for Mongo}
   gem.email       = "nunemaker@gmail.com"
   gem.homepage    = "http://github.com/jnunemaker/mongomapper"
   gem.authors     = ["John Nunemaker"]
   
   gem.add_dependency('activesupport', '>= 2.3')
-  gem.add_dependency('mongo', '0.18.2')
+  gem.add_dependency('mongo', '0.18.3')
   gem.add_dependency('jnunemaker-validatable', '1.8.1')
   
   gem.add_development_dependency('jnunemaker-matchy', '0.4.0')

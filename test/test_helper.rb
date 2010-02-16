@@ -16,32 +16,40 @@ require 'support/timing'
 
 class Test::Unit::TestCase
   include CustomMatchers
-  
-  cattr_accessor :mm_document_count
-  self.mm_document_count = 0
-  
+
   def Doc(name=nil, &block)
-    Test::Unit::TestCase.mm_document_count += 1
-    
     klass = Class.new do
       include MongoMapper::Document
       set_collection_name "test#{rand(20)}"
-      
+
       if name
         class_eval "def self.name; '#{name}' end"
         class_eval "def self.to_s; '#{name}' end"
       end
-      
-      class_eval(&block) if block_given?
     end
+
+    klass.class_eval(&block) if block_given?
     klass.collection.remove
     klass
   end
-  
-  def EDoc(&block)
-    Class.new do
+
+  def EDoc(name=nil, &block)
+    klass = Class.new do
       include MongoMapper::EmbeddedDocument
-      instance_eval(&block) if block_given?
+
+      if name
+        class_eval "def self.name; '#{name}' end"
+        class_eval "def self.to_s; '#{name}' end"
+      end
+    end
+
+    klass.class_eval(&block) if block_given?
+    klass
+  end
+
+  def drop_indexes(klass)
+    if klass.database.collection_names.include?(klass.collection.name)
+      klass.collection.drop_indexes
     end
   end
 end
@@ -49,7 +57,5 @@ end
 test_dir = File.expand_path(File.dirname(__FILE__) + '/../tmp')
 FileUtils.mkdir_p(test_dir) unless File.exist?(test_dir)
 
-MongoMapper.connection = Mongo::Connection.new('127.0.0.1', 27017, {
-  :logger => Logger.new(test_dir + '/test.log')
-})
+MongoMapper.connection = Mongo::Connection.new('127.0.0.1', 27017, {:logger => Logger.new(test_dir + '/test.log')})
 MongoMapper.database = 'test'

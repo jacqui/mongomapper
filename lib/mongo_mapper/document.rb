@@ -1,68 +1,39 @@
-require 'set'
-
 module MongoMapper
   module Document
+    extend Support::DescendantAppends
+
     def self.included(model)
       model.class_eval do
-        include EmbeddedDocument
         include InstanceMethods
-        include Callbacks
-        include Dirty
-        include RailsCompatibility::Document
-        include NamedScope
-        extend Validations::Macros
-        extend ClassMethods
-        extend Finders
-        include NamedScope
+        extend  Support::Find
+        extend  ClassMethods
+        extend  Plugins
 
-        def self.per_page
-          25
-        end unless respond_to?(:per_page)
+        plugin Plugins::Associations
+        plugin Plugins::Clone
+        plugin Plugins::Descendants
+        plugin Plugins::Equality
+        plugin Plugins::Inspect
+        plugin Plugins::Keys
+        plugin Plugins::Dirty # for now dirty needs to be after keys
+        plugin Plugins::Logger
+        plugin Plugins::Pagination
+        plugin Plugins::Protected
+        plugin Plugins::Rails
+        plugin Plugins::Serialization
+        plugin Plugins::Validations
+        plugin Plugins::Callbacks # for now callbacks needs to be after validations
+        
+        extend Plugins::Validations::DocumentMacros
       end
 
-      extra_extensions.each { |extension| model.extend(extension) }
-      extra_inclusions.each { |inclusion| model.send(:include, inclusion) }
-
-      descendants << model
+      super
     end
 
-    def self.descendants
-      @descendants ||= Set.new
-    end
-
-    def self.append_extensions(*extensions)
-      extra_extensions.concat extensions
-
-      # Add the extension to existing descendants
-      descendants.each do |model|
-        extensions.each { |extension| model.extend(extension) }
-      end
-    end
-
-    # @api private
-    def self.extra_extensions
-      @extra_extensions ||= []
-    end
-
-    def self.append_inclusions(*inclusions)
-      extra_inclusions.concat inclusions
-
-      # Add the inclusion to existing descendants
-      descendants.each do |model|
-        inclusions.each { |inclusion| model.send :include, inclusion }
-      end
-    end
-
-    # @api private
-    def self.extra_inclusions
-      @extra_inclusions ||= []
-    end
-    
     module ClassMethods
-      def key(*args)
-        key = super
-        create_indexes_for(key)
-        key
+      def inherited(subclass)
+        subclass.set_collection_name(collection_name)
+        super
       end
 
       def ensure_index(name_or_array, options={})
@@ -72,11 +43,25 @@ module MongoMapper
           name_or_array
         end
 
-        MongoMapper.ensure_index(self, keys_to_index, options)
+        collection.create_index(keys_to_index, options[:unique])
+      end
+
+      def find(*args)
+        assert_no_first_last_or_all(args)
+        options = args.extract_options!
+        return nil if args.size == 0
+
+        if args.first.is_a?(Array) || args.size > 1
+          find_some(args, options)
+        else
+          find_one(options.merge({:_id => args[0]}))
+        end
       end
 
       def find!(*args)
+        assert_no_first_last_or_all(args)
         options = args.extract_options!
+<<<<<<< HEAD
         options.merge!(scope(:find)) if scope(:find)
         case args.first
           when :first then first(options)
@@ -92,24 +77,34 @@ module MongoMapper
               else
                 find_some(args, options)
             end
+=======
+        raise DocumentNotFound, "Couldn't find without an ID" if args.size == 0
+
+        if args.first.is_a?(Array) || args.size > 1
+          find_some!(args, options)
+        else
+          find_one(options.merge({:_id => args[0]})) || raise(DocumentNotFound, "Document match #{options.inspect} does not exist in #{collection.name} collection")
+>>>>>>> 44bac85b77fd7d867ff6bf187b43ab4284602e1e
         end
       end
-      
-      def find(*args)
-        find!(*args)
-      rescue DocumentNotFound
-        nil
+
+      def find_each(options={})
+        criteria, options = to_query(options)
+        collection.find(criteria, options).each do |doc|
+          yield load(doc)
+        end
       end
 
-      def paginate(options)
-        per_page      = options.delete(:per_page) || self.per_page
-        page          = options.delete(:page)
-        total_entries = count(options)
-        pagination    = Pagination::PaginationProxy.new(total_entries, page, per_page)
+      def find_by_id(id)
+        find(id)
+      end
 
-        options.merge!(:limit => pagination.limit, :skip => pagination.skip)
-        pagination.subject = find_every(options)
-        pagination
+      def first_or_create(arg)
+        first(arg) || create(arg)
+      end
+
+      def first_or_new(arg)
+        first(arg) || new(arg)
       end
 
       def first(options={})
@@ -122,11 +117,7 @@ module MongoMapper
       end
 
       def all(options={})
-        find_every(options)
-      end
-
-      def find_by_id(id)
-        find(id)
+        find_many(options)
       end
 
       def count(options={})
@@ -163,63 +154,57 @@ module MongoMapper
       end
 
       def destroy(*ids)
-        find_some(ids.flatten).each(&:destroy)
+        find_some!(ids.flatten).each(&:destroy)
       end
 
       def destroy_all(options={})
-        all(options).each(&:destroy)
+        find_each(options) { |document| document.destroy }
       end
-      
+
       def increment(*args)
         modifier_update('$inc', args)
       end
-      
+
       def decrement(*args)
         criteria, keys = criteria_and_keys_from_args(args)
         values, to_decrement = keys.values, {}
         keys.keys.each_with_index { |k, i| to_decrement[k] = -values[i].abs }
         collection.update(criteria, {'$inc' => to_decrement}, :multi => true)
       end
-      
+
       def set(*args)
         modifier_update('$set', args)
       end
-      
+
       def push(*args)
         modifier_update('$push', args)
       end
-      
+
       def push_all(*args)
         modifier_update('$pushAll', args)
       end
-      
+
       def push_uniq(*args)
         criteria, keys = criteria_and_keys_from_args(args)
         keys.each { |key, value | criteria[key] = {'$ne' => value} }
         collection.update(criteria, {'$push' => keys}, :multi => true)
       end
-      
+
       def pull(*args)
         modifier_update('$pull', args)
       end
-      
+
       def pull_all(*args)
         modifier_update('$pullAll', args)
       end
-      
-      def modifier_update(modifier, args)
-        criteria, keys = criteria_and_keys_from_args(args)
-        modifiers = {modifier => keys}
-        collection.update(criteria, modifiers, :multi => true)
+
+      def pop(*args)
+        modifier_update('$pop', args)
       end
-      private :modifier_update
-      
-      def criteria_and_keys_from_args(args)
-        keys     = args.pop
-        criteria = args[0].is_a?(Hash) ? args[0] : {:id => args}
-        [to_criteria(criteria), keys]
+
+      def embeddable?
+        false
       end
-      private :criteria_and_keys_from_args
 
       def connection(mongo_connection=nil)
         if mongo_connection.nil?
@@ -272,39 +257,51 @@ module MongoMapper
       end
 
       def single_collection_inherited?
-        keys.has_key?('_type') && single_collection_inherited_superclass?
+        keys.key?(:_type) && single_collection_inherited_superclass?
       end
 
       def single_collection_inherited_superclass?
-        superclass.respond_to?(:keys) && superclass.keys.has_key?('_type')
+        superclass.respond_to?(:keys) && superclass.keys.key?(:_type)
       end
 
       private
-        def create_indexes_for(key)
-          ensure_index key.name if key.options[:index]
-        end
-
         def initialize_each(*docs)
           instances = []
           docs = [{}] if docs.blank?
           docs.flatten.each do |attrs|
-            doc = initialize_doc(attrs)
+            doc = new(attrs)
             yield(doc)
             instances << doc
           end
           instances.size == 1 ? instances[0] : instances
         end
 
-        def find_every(options)
-          criteria, options = to_finder_options(options)
-          collection.find(criteria, options).to_a.map do |doc|
-            initialize_doc(doc)
+        def modifier_update(modifier, args)
+          criteria, keys = criteria_and_keys_from_args(args)
+          modifiers = {modifier => keys}
+          collection.update(criteria, modifiers, :multi => true)
+        end
+
+        def criteria_and_keys_from_args(args)
+          keys     = args.pop
+          criteria = args[0].is_a?(Hash) ? args[0] : {:id => args}
+          [to_criteria(criteria), keys]
+        end
+
+        def assert_no_first_last_or_all(args)
+          if args[0] == :first || args[0] == :last || args[0] == :all
+            raise ArgumentError, "#{self}.find(:#{args}) is no longer supported, use #{self}.#{args} instead."
           end
         end
 
         def find_some(ids, options={})
-          ids       = ids.flatten.compact.uniq
-          documents = find_every(options.merge(:_id => ids))
+          ids = ids.flatten.compact.uniq
+          find_many(options.merge(:_id => ids)).compact
+        end
+
+        def find_some!(ids, options={})
+          ids = ids.flatten.compact.uniq
+          documents = find_some(ids, options)
 
           if ids.size == documents.size
             documents
@@ -313,15 +310,20 @@ module MongoMapper
           end
         end
 
+        # All query methods that load documents pass through find_one or find_many
         def find_one(options={})
-          criteria, options = to_finder_options(options)
+          criteria, options = to_query(options)
           if doc = collection.find_one(criteria, options)
-            initialize_doc(doc)
+            load(doc)
           end
         end
 
-        def find_one!(options={})
-          find_one(options) || raise(DocumentNotFound, "Document match #{options.inspect} does not exist in #{collection.name} collection")
+        # All query methods that load documents pass through find_one or find_many
+        def find_many(options)
+          criteria, options = to_query(options)
+          collection.find(criteria, options).to_a.map do |doc|
+            load(doc)
+          end
         end
 
         def invert_order_clause(order)
@@ -357,12 +359,20 @@ module MongoMapper
         end
 
         def to_criteria(options={})
+<<<<<<< HEAD
           FinderOptions.new(
             self, options.merge(self.scope.conditions)).criteria
         end
 
         def to_finder_options(options={})
           FinderOptions.new(self, options.merge(self.scope.conditions)).to_a
+=======
+          Query.new(self, options).criteria
+        end
+
+        def to_query(options={})
+          Query.new(self, options).to_a
+>>>>>>> 44bac85b77fd7d867ff6bf187b43ab4284602e1e
         end
     end
 
@@ -370,42 +380,38 @@ module MongoMapper
       def collection
         self.class.collection
       end
-      
+
       def database
         self.class.database
       end
 
-      def new?
-        read_attribute('_id').blank? || using_custom_id?
-      end
-
       def save(options={})
-        if options === false
-          ActiveSupport::Deprecation.warn "save with true/false is deprecated. You should now use :validate => true/false."
-          options = {:validate => false}
-        end
+        options.assert_valid_keys(:validate, :safe)
         options.reverse_merge!(:validate => true)
-        perform_validations = options.delete(:validate)
-        !perform_validations || valid? ? create_or_update(options) : false
+        !options[:validate] || valid? ? create_or_update(options) : false
       end
 
-      def save!
-        save || raise(DocumentNotValid.new(self))
+      def save!(options={})
+        options.assert_valid_keys(:safe)
+        save(options) || raise(DocumentNotValid.new(self))
       end
 
       def destroy
-        self.class.delete(id) unless new?
+        delete
       end
-      
+
       def delete
         self.class.delete(id) unless new?
       end
 
       def reload
-        doc = self.class.find(_id)
-        self.class.associations.each { |name, assoc| send(name).reset if respond_to?(name) }
-        self.attributes = doc.attributes
-        self
+        if attrs = collection.find_one({:_id => _id})
+          self.class.associations.each { |name, assoc| send(name).reset if respond_to?(name) }
+          self.attributes = attrs
+          self
+        else
+          raise DocumentNotFound, "Document match #{_id.inspect} does not exist in #{collection.name} collection"
+        end
       end
 
     private
@@ -415,14 +421,7 @@ module MongoMapper
       end
 
       def create(options={})
-        assign_id
         save_to_collection(options)
-      end
-
-      def assign_id
-        if read_attribute(:_id).blank?
-          write_attribute :_id, Mongo::ObjectID.new
-        end
       end
 
       def update(options={})
@@ -430,19 +429,15 @@ module MongoMapper
       end
 
       def save_to_collection(options={})
-        clear_custom_id_flag
-        safe = options.delete(:safe) || false
+        safe = options[:safe] || false
+        @new = false
         collection.save(to_mongo, :safe => safe)
       end
 
       def update_timestamps
         now = Time.now.utc
-        write_attribute('created_at', now) if new? && read_attribute('created_at').blank?
-        write_attribute('updated_at', now)
-      end
-
-      def clear_custom_id_flag
-        @using_custom_id = nil
+        self[:created_at] = now if new? && !created_at?
+        self[:updated_at] = now
       end
     end
   end # Document
